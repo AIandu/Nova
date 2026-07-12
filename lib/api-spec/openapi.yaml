@@ -3,20 +3,31 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Nova — AI&U Platform API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: projects
+    description: AI&U project catalog
+  - name: leads
+    description: Lead / briefing request capture
+  - name: conversations
+    description: Nova AI conversations
+  - name: decisions
+    description: Decisions log (Partner Space)
+  - name: todos
+    description: To-do board (Partner Space)
+  - name: uploads
+    description: File uploads (Partner Space)
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +35,380 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ─── Projects ────────────────────────────────────────────────────────────────
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List all projects
+      parameters:
+        - in: query
+          name: category
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+
+  /projects/summary:
+    get:
+      operationId: getProjectsSummary
+      tags: [projects]
+      summary: Get project counts by category and status
+      responses:
+        "200":
+          description: Summary stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectsSummary"
+
+  /projects/{id}:
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Get a single project
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateProject
+      tags: [projects]
+      summary: Update a project
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectUpdate"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+
+  # ─── Leads ───────────────────────────────────────────────────────────────────
+  /leads:
+    get:
+      operationId: listLeads
+      tags: [leads]
+      summary: List leads (admin)
+      responses:
+        "200":
+          description: List of leads
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Lead"
+    post:
+      operationId: createLead
+      tags: [leads]
+      summary: Submit a lead / briefing request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadInput"
+      responses:
+        "201":
+          description: Lead created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lead"
+
+  /leads/stats:
+    get:
+      operationId: getLeadsStats
+      tags: [leads]
+      summary: Lead counts by source
+      responses:
+        "200":
+          description: Lead stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadsStats"
+
+  # ─── Conversations ────────────────────────────────────────────────────────────
+  /conversations:
+    post:
+      operationId: createConversation
+      tags: [conversations]
+      summary: Start a new Nova conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConversationInput"
+      responses:
+        "201":
+          description: Conversation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+
+  /conversations/{id}:
+    get:
+      operationId: getConversation
+      tags: [conversations]
+      summary: Get conversation with its messages
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Conversation with messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationWithMessages"
+
+  /conversations/{id}/messages:
+    post:
+      operationId: sendMessage
+      tags: [conversations]
+      summary: Send a message to Nova (SSE streaming response)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageInput"
+      responses:
+        "200":
+          description: SSE stream of Nova's response
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  # ─── Decisions ────────────────────────────────────────────────────────────────
+  /decisions:
+    get:
+      operationId: listDecisions
+      tags: [decisions]
+      summary: List decisions log entries
+      responses:
+        "200":
+          description: List of decisions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Decision"
+    post:
+      operationId: createDecision
+      tags: [decisions]
+      summary: Log a new decision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecisionInput"
+      responses:
+        "201":
+          description: Decision created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Decision"
+
+  /decisions/{id}:
+    patch:
+      operationId: updateDecision
+      tags: [decisions]
+      summary: Update decision outcome/lesson
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecisionUpdate"
+      responses:
+        "200":
+          description: Updated decision
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Decision"
+
+  # ─── Todos ────────────────────────────────────────────────────────────────────
+  /todos:
+    get:
+      operationId: listTodos
+      tags: [todos]
+      summary: List to-do board items
+      responses:
+        "200":
+          description: List of todos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Todo"
+    post:
+      operationId: createTodo
+      tags: [todos]
+      summary: Create a to-do item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TodoInput"
+      responses:
+        "201":
+          description: Todo created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Todo"
+
+  /todos/{id}:
+    patch:
+      operationId: updateTodo
+      tags: [todos]
+      summary: Update a to-do item (approve / move status)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TodoUpdate"
+      responses:
+        "200":
+          description: Updated todo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Todo"
+    delete:
+      operationId: deleteTodo
+      tags: [todos]
+      summary: Delete a to-do item
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ─── Uploads ─────────────────────────────────────────────────────────────────
+  /uploads:
+    get:
+      operationId: listUploads
+      tags: [uploads]
+      summary: List uploaded files
+      responses:
+        "200":
+          description: List of uploads
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Upload"
+
+  /uploads/{id}:
+    delete:
+      operationId: deleteUpload
+      tags: [uploads]
+      summary: Delete an uploaded file
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +419,499 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    # ── Project ────────────────────────────────────────────────────────────────
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+        oneLiner:
+          type: string
+        capabilities:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [prototype, in_development, deployed]
+        technicalNote:
+          type: ["string", "null"]
+        linkedinUrl:
+          type: ["string", "null"]
+        whitepaper:
+          type: ["string", "null"]
+        price:
+          type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+        featured:
+          type: boolean
+        labVisible:
+          type: boolean
+        storefrontVisible:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - slug
+        - category
+        - description
+        - oneLiner
+        - capabilities
+        - status
+        - featured
+        - labVisible
+        - storefrontVisible
+        - createdAt
+        - updatedAt
+
+    ProjectInput:
+      type: object
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+        oneLiner:
+          type: string
+        capabilities:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [prototype, in_development, deployed]
+        technicalNote:
+          type: string
+        linkedinUrl:
+          type: string
+        whitepaper:
+          type: string
+        price:
+          type: string
+        imageUrl:
+          type: string
+        featured:
+          type: boolean
+        labVisible:
+          type: boolean
+        storefrontVisible:
+          type: boolean
+      required:
+        - name
+        - slug
+        - category
+        - description
+        - oneLiner
+        - status
+
+    ProjectUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+        oneLiner:
+          type: string
+        capabilities:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [prototype, in_development, deployed]
+        technicalNote:
+          type: string
+        linkedinUrl:
+          type: string
+        whitepaper:
+          type: string
+        price:
+          type: string
+        imageUrl:
+          type: string
+        featured:
+          type: boolean
+        labVisible:
+          type: boolean
+        storefrontVisible:
+          type: boolean
+
+    ProjectsSummary:
+      type: object
+      properties:
+        total:
+          type: integer
+        byCategory:
+          type: array
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+              count:
+                type: integer
+            required:
+              - category
+              - count
+        byStatus:
+          type: array
+          items:
+            type: object
+            properties:
+              status:
+                type: string
+              count:
+                type: integer
+            required:
+              - status
+              - count
+      required:
+        - total
+        - byCategory
+        - byStatus
+
+    # ── Lead ──────────────────────────────────────────────────────────────────
+    Lead:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        organization:
+          type: ["string", "null"]
+        role:
+          type: ["string", "null"]
+        interest:
+          type: ["string", "null"]
+        note:
+          type: ["string", "null"]
+        source:
+          type: string
+        projectId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - email
+        - source
+        - createdAt
+
+    LeadInput:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        organization:
+          type: string
+        role:
+          type: string
+        interest:
+          type: string
+        note:
+          type: string
+        source:
+          type: string
+          enum: [briefing, consultation, buy-now, blind-box, custom-request, hire-me, nova-chat, lab]
+        projectId:
+          type: integer
+      required:
+        - name
+        - email
+        - source
+
+    LeadsStats:
+      type: object
+      properties:
+        total:
+          type: integer
+        bySource:
+          type: array
+          items:
+            type: object
+            properties:
+              source:
+                type: string
+              count:
+                type: integer
+            required:
+              - source
+              - count
+      required:
+        - total
+        - bySource
+
+    # ── Conversation ──────────────────────────────────────────────────────────
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: integer
+        door:
+          type: string
+          enum: [partner, lab, storefront]
+        title:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - door
+        - createdAt
+
+    ConversationInput:
+      type: object
+      properties:
+        door:
+          type: string
+          enum: [partner, lab, storefront]
+        title:
+          type: string
+      required:
+        - door
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+        conversationId:
+          type: integer
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - conversationId
+        - role
+        - content
+        - createdAt
+
+    MessageInput:
+      type: object
+      properties:
+        content:
+          type: string
+      required:
+        - content
+
+    ConversationWithMessages:
+      type: object
+      properties:
+        id:
+          type: integer
+        door:
+          type: string
+          enum: [partner, lab, storefront]
+        title:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/Message"
+      required:
+        - id
+        - door
+        - createdAt
+        - messages
+
+    # ── Decision ──────────────────────────────────────────────────────────────
+    Decision:
+      type: object
+      properties:
+        id:
+          type: integer
+        context:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        chosen:
+          type: string
+        prediction:
+          type: string
+        confidence:
+          type: number
+        primaryRisk:
+          type: string
+        outcome:
+          type: ["string", "null"]
+        lesson:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - context
+        - options
+        - chosen
+        - prediction
+        - confidence
+        - primaryRisk
+        - createdAt
+        - updatedAt
+
+    DecisionInput:
+      type: object
+      properties:
+        context:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        chosen:
+          type: string
+        prediction:
+          type: string
+        confidence:
+          type: number
+        primaryRisk:
+          type: string
+      required:
+        - context
+        - options
+        - chosen
+        - prediction
+        - confidence
+        - primaryRisk
+
+    DecisionUpdate:
+      type: object
+      properties:
+        outcome:
+          type: string
+        lesson:
+          type: string
+
+    # ── Todo ──────────────────────────────────────────────────────────────────
+    Todo:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [approval_needed, waiting, completed]
+        approved:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - status
+        - approved
+        - createdAt
+        - updatedAt
+
+    TodoInput:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [approval_needed, waiting, completed]
+      required:
+        - title
+        - status
+
+    TodoUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [approval_needed, waiting, completed]
+        approved:
+          type: boolean
+
+    # ── Upload ────────────────────────────────────────────────────────────────
+    Upload:
+      type: object
+      properties:
+        id:
+          type: integer
+        filename:
+          type: string
+        originalName:
+          type: string
+        mimeType:
+          type: string
+        size:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - filename
+        - originalName
+        - mimeType
+        - size
+        - createdAt

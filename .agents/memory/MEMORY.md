@@ -1,0 +1,3 @@
+- [Nova platform architecture](nova-platform.md) — three-door app (/, /lab, /partner) in artifacts/nova; API in artifacts/api-server
+- [OpenAI client env override](openai-client-fix.md) — all three client files (client.ts, image/client.ts, audio/client.ts) must fall back to OPENAI_API_KEY
+- [Partner layout height fix](partner-layout-fix.md) — outer div must be h-[100dvh] (not min-h), main must be flex-1 min-h-0 (not h-[100dvh]) for absolute positioning to work
