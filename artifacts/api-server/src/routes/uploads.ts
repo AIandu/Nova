@@ -1,25 +1,36 @@
 import { Router } from "express";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { uploads } from "@workspace/db";
 import { DeleteUploadParams } from "@workspace/api-zod";
-import { desc } from "drizzle-orm";
-import path from "path";
-import fs from "fs";
 import multer from "multer";
+import multerS3 from "multer-s3";
+import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { requireAuth } from "../middlewares/requireAuth";
 
 const router = Router();
 router.use(requireAuth);
 
-const uploadDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+// --- S3 / R2 client setup ---
+// Required env vars: STORAGE_BUCKET, STORAGE_ENDPOINT,
+// STORAGE_ACCESS_KEY_ID, STORAGE_SECRET_ACCESS_KEY
+const s3Client = new S3Client({
+  region: "auto", // R2 ignores region; set a real region if you swap to AWS S3 later
+  endpoint: process.env.STORAGE_ENDPOINT,
+  credentials: {
+    accessKeyId: process.env.STORAGE_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.STORAGE_SECRET_ACCESS_KEY!,
+  },
+});
 
-const storage = multer.diskStorage({
-  destination: uploadDir,
-  filename: (_req, file, cb) => {
+const BUCKET = process.env.STORAGE_BUCKET!;
+
+// --- Multer config using S3 storage instead of disk ---
+const storage = multerS3({
+  s3: s3Client,
+  bucket: BUCKET,
+  contentType: multerS3.AUTO_CONTENT_TYPE,
+  key: (_req, file, cb) => {
     const unique = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     cb(null, `${unique}-${file.originalname}`);
   },
@@ -40,7 +51,9 @@ router.get("/", async (req, res) => {
 
 // POST /uploads (multipart)
 router.post("/", upload.single("file"), async (req, res) => {
-  if (!req.file) {
+  const file = req.file as Express.MulterS3.File | undefined;
+
+  if (!file) {
     res.status(400).json({ error: "No file uploaded" });
     return;
   }
@@ -49,10 +62,10 @@ router.post("/", upload.single("file"), async (req, res) => {
     const [upload] = await db
       .insert(uploads)
       .values({
-        filename: req.file.filename,
-        originalName: req.file.originalname,
-        mimeType: req.file.mimetype,
-        size: req.file.size,
+        filename: file.key, // S3 object key — used for delete + retrieval
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
       })
       .returning();
     res.status(201).json(upload);
@@ -81,10 +94,13 @@ router.delete("/:id", async (req, res) => {
       return;
     }
 
-    const filePath = path.join(uploadDir, upload.filename);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
+    // Delete the object from S3/R2 instead of local disk
+    await s3Client.send(
+      new DeleteObjectCommand({
+        Bucket: BUCKET,
+        Key: upload.filename,
+      })
+    );
 
     await db.delete(uploads).where(eq(uploads.id, params.data.id));
     res.status(204).send();
