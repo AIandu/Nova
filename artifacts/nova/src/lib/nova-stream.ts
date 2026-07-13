@@ -8,17 +8,12 @@ export async function streamNovaMessage(
   const res = await fetch(`${base}/api/conversations/${conversationId}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ content }),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`${res.status} ${res.statusText}: ${text}`);
-    const res = await fetch(`${base}/api/conversations/${conversationId}/messages`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  credentials: 'include',
-  body: JSON.stringify({ content }),
-});
   }
   const reader = res.body!.getReader();
   const decoder = new TextDecoder();
