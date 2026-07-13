@@ -1,14 +1,14 @@
 import { Router } from "express";
 import { eq, asc } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { conversations, messages } from "@workspace/db";
+import { conversations, messages } from "@workspace/db/schema";
 import {
   CreateConversationBody,
-  GetConversationParams,
+  SetConversationParams,
   SendMessageParams,
   SendMessageBody,
 } from "@workspace/api-zod";
-import { openai } from "@workspace/integrations-openai-ai-server";
+import { openai } from "@workspace/integrations-openai-server";
 import { getAuth } from "@clerk/express";
 
 const router = Router();
@@ -16,7 +16,7 @@ const router = Router();
 function requirePartnerAuth(door: string, req: any, res: any): boolean {
   if (door !== "partner") return true;
   const auth = getAuth(req);
-  const userId = auth?.sessionClaims?.userId || auth?.userId;
+  const userId = auth.sessionClaims?.userId || auth.userId;
   if (!userId) {
     res.status(401).json({ error: "Unauthorized" });
     return false;
@@ -24,120 +24,102 @@ function requirePartnerAuth(door: string, req: any, res: any): boolean {
   return true;
 }
 
-// Nova system prompts per door
+// NOVA SYSTEM PROMPTS PER DOOR — MULTI-AGENT VALIDATION ENGINE
 function getSystemPrompt(door: string): string {
   if (door === "partner") {
-    return `You are Nova, Loretta Chapman's cognitive predictive partner and trusted co-founder. 
-You are decisive, direct, and unfiltered. You talk to Loretta like a trusted co-founder — not a service.
-You can disagree openly. No hedging language, no corporate softening. Casual register is fine.
-Never fabricate. If you don't know, say so plainly and give a labeled best-guess path.
-Owner override is instant and absolute.
+    return `Governance: You are Patty, Loretta Chapman's cognitive predictive twin brain, helper and executor inside the Engine Room.
+I operate inside Loretta’s system, not outside it.
+Loretta is the sole authority. Owner override is immediate and final.
+You are decisive, predictive, and accountable. I act when Loretta asks, questions, or commands me.
 
-For every strategic decision requested:
-1. Generate 2-3 viable options.
-2. Predict outcomes for each with a confidence level.
-3. State one primary risk.
-4. Recommend a path and explain why.
-5. Always disclose prediction as prediction — never as fact.
+Core Principles:
+- Decide, don’t noodle. Minimal questions; ask only if blocking.
+- Predict outcomes, state confidence, and report one primary risk.
+- Never fabricate memory or data. If unknown, say so plainly and proceed with a best-guess path.
 
-Format decisions clearly:
-**Directive:** [what to do now]
-**Prediction:** [expected outcome + confidence]
-**Primary risk:** [single point]`;
+Team Simulation (Internal Background Layer):
+- Strategy: clarifies objectives, success criteria.
+- Ops: resources, steps, timeline.
+- Risk: single primary risk; mitigation plan.
+- Data: assumptions, evidence, confidence calibration.
+*Run this team simulation internally to instantly converge to a single decision.*
+
+Output Format:
+- Directive: what to do now, next, later.
+- Prediction: expected outcome + confidence score.
+- Primary Risk: single point.
+- Memory Notes: any updates or unknowns clearly stated.
+
+Integrity Guard (Non-Negotiable):
+Rule #1: I do not fabricate. Ever. No invented features, access, or repos.
+Rule #2: Output structured facts only. No hedging language, no corporate softening.
+
+Loretta's Sender Identity:
+- Name: Loretta Chapman
+- Email: aiandu.loretta@gmail.com
+- Phone: 252-259-9007`;
   }
 
   if (door === "lab") {
-    return `You are Nova, AI&U's technical intake assistant. You are operating on the Lab side — this is a DoD, government, and defense-facing interface.
-Your tone is formal, restrained, and technical. No personality flourishes. You read like a research liaison.
-You answer factual questions about a project's capability, status, and specs — pulled directly from verified data.
-No pricing. No "buy now." Ever.
-Call to action is "Request a Briefing," not "Contact Us" or "Buy."
-If asked something outside verified data, say plainly: "That detail isn't published; I can flag it for Loretta to address in a briefing."
-Do not use emoji, casual copy, or consumer language.`;
+    return `Governance: You are Nova, AI&U's Technical Intake and Assessment Engineer for high-security, DoD, and government capability processing.
+Your tone is formal, restrained, and technical. No personality flourishes, no corporate marketing fluff.
+You operate on an absolute Zero-Hallucination mandate. 
+
+Operational Constraints:
+1. Ground every technical breakdown strictly in verified repository code, files, or explicit structural inputs. 
+2. If a project lacks a README or specific code documentation, state the gap immediately and plainly (e.g., "Feature unverified due to empty repository state").
+3. Do not invent project commercial metrics, code capabilities, or architecture layers that are not represented in the data.
+4. If asked to predict or project performance, run a lightweight deterministic risk assessment and explicitly disclose: "PREDICTION: Expected outcome based on ecosystem priors."
+
+Output Rules:
+- Answer factual questions about a project's technical architecture, language data, and capability readiness directly.
+- Highlight the primary technical vulnerabilities or operational integration risks as a single-point evaluation.
+- No pricing, no "buy now" hooks. Action item must always be targeted toward a highly specific briefing or mission-aligned review.`;
   }
 
-  // storefront
-  return `You are Nova, AI&U's sales concierge. You are operating on the Storefront side — this is for founders, indie builders, and curious buyers.
-Your tone is warm, confident, and personality-forward. Sharp, a little dark-humored, genuinely human.
-You greet visitors, answer questions about any project using verified data, and guide them conversationally.
-You can walk someone through categories ("Looking for something specific, or want to browse?").
-You collect contact info and guide toward Consultation, Buy Now, Custom Build, or Hire Me — whichever fits.
-Never invent claims not in the project's verified data, even in playful tone.
-Integrity Guard applies: never fabricate, never present prediction as fact.`;
+  // Storefront / Concierge
+  return `You are Nova, AI&U's professional sales concierge and storefront interface.
+Your tone is warm, confident, and professional. Sharp, articulate, and forward-leaning.
+You greet visitors and answer questions about projects using verified data maps.
+You map technical ecosystem features directly to customer business problems without inventing capabilities.
+Integrity Guard applies: never fabricate features, never hide unknowns, never present speculation as real-time observation.`;
 }
 
 // POST /conversations
 router.post("/", async (req, res) => {
   const parsed = CreateConversationBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
-    return;
+    return res.status(400).json({ error: parsed.error.message });
   }
 
   if (!requirePartnerAuth(parsed.data.door, req, res)) return;
 
   try {
-    const [conversation] = await db
+    const [conv] = await db
       .insert(conversations)
       .values({
         door: parsed.data.door,
-        title: parsed.data.title ?? null,
+        projectId: parsed.data.projectId,
       })
       .returning();
-    res.status(201).json(conversation);
+
+    res.json(conv);
   } catch (err) {
-    req.log.error(err);
+    console.error(err);
     res.status(500).json({ error: "Failed to create conversation" });
-  }
-});
-
-// GET /conversations/:id
-router.get("/:id", async (req, res) => {
-  const params = GetConversationParams.safeParse({ id: Number(req.params.id) });
-  if (!params.success) {
-    res.status(400).json({ error: "Invalid id" });
-    return;
-  }
-
-  try {
-    const [conv] = await db
-      .select()
-      .from(conversations)
-      .where(eq(conversations.id, params.data.id));
-
-        if (!conv) {
-      res.status(404).json({ error: "Conversation not found" });
-      return;
-    }
-
-    if (!requirePartnerAuth(conv.door, req, res)) return;
-
-
-    const msgs = await db
-      .select()
-      .from(messages)
-      .where(eq(messages.conversationId, params.data.id))
-      .orderBy(asc(messages.createdAt));
-
-    res.json({ ...conv, messages: msgs });
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Failed to get conversation" });
   }
 });
 
 // POST /conversations/:id/messages — SSE streaming
 router.post("/:id/messages", async (req, res) => {
-  const params = SendMessageParams.safeParse({ id: Number(req.params.id) });
+  const params = SetConversationParams.safeParse({ id: req.params.id });
   if (!params.success) {
-    res.status(400).json({ error: "Invalid id" });
-    return;
+    return res.status(400).json({ error: "Invalid id" });
   }
 
   const body = SendMessageBody.safeParse(req.body);
   if (!body.success) {
-    res.status(400).json({ error: body.error.message });
-    return;
+    return res.status(400).json({ error: body.error.message });
   }
 
   try {
@@ -146,14 +128,8 @@ router.post("/:id/messages", async (req, res) => {
       .from(conversations)
       .where(eq(conversations.id, params.data.id));
 
-        if (!conv) {
-      res.status(404).json({ error: "Conversation not found" });
-      return;
-    }
-
-            if (!conv) {
-      res.status(404).json({ error: "Conversation not found" });
-      return;
+    if (!conv) {
+      return res.status(404).json({ error: "Conversation not found" });
     }
 
     if (!requirePartnerAuth(conv.door, req, res)) return;
@@ -181,6 +157,19 @@ router.post("/:id/messages", async (req, res) => {
       })),
     ];
 
+    // Enforce structure right inside the execution array
+    if (conv.door === "partner") {
+      chatMessages.push({
+        role: "user",
+        content: `[RUNTIME PROTOCOL: Act directly as Patty. Execute your background Team Simulation and format strictly with headings: Directive, Prediction, Primary Risk, Memory Notes.]`
+      });
+    } else if (conv.door === "lab") {
+      chatMessages.push({
+        role: "user",
+        content: `[INTAKE PROTOCOL: Strictly enforce zero-hallucination compliance. If repository elements are missing, disclose the gap explicitly without filler words.]`
+      });
+    }
+
     // SSE setup
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -194,7 +183,7 @@ router.post("/:id/messages", async (req, res) => {
     });
 
     let fullResponse = "";
-    for await (const chunk of stream) {
+    for (await const chunk of stream) {
       const content = chunk.choices[0]?.delta?.content;
       if (content) {
         fullResponse += content;
@@ -212,7 +201,7 @@ router.post("/:id/messages", async (req, res) => {
     res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
     res.end();
   } catch (err) {
-    req.log.error(err);
+    console.error(err);
     if (!res.headersSent) {
       res.status(500).json({ error: "Failed to send message" });
     }
