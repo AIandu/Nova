@@ -195,7 +195,7 @@ export default function PartnerHome() {
     setUploading(true);
     const formData = new FormData();
     formData.append('file', file);
-    const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+    const base = import.meta.env.VITE_API_BASE_URL ?? '';
     try {
       await fetch(`${base}/api/uploads`, { method: 'POST', body: formData });
       queryClient.invalidateQueries({ queryKey: getListUploadsQueryKey() });
