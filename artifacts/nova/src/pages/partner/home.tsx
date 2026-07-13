@@ -150,9 +150,11 @@ export default function PartnerHome() {
     setIsStreaming(true);
 
     try {
+      const token = await clerk.session?.getToken();
       await streamNovaMessage(
         conversationId,
         userContent,
+        token ?? null,
         (chunk) => {
           setMessages((prev) => {
             const next = [...prev];
@@ -165,7 +167,7 @@ export default function PartnerHome() {
         },
         () => setIsStreaming(false)
       );
-        } catch (err) {
+    } catch (err) {
       setIsStreaming(false);
       setMessages((prev) => [
         ...prev,
@@ -175,7 +177,7 @@ export default function PartnerHome() {
         },
       ]);
     }
-  }, [input, conversationId, isStreaming]);
+  }, [input, conversationId, isStreaming, clerk]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
