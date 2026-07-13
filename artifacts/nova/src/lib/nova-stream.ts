@@ -1,15 +1,20 @@
 export async function streamNovaMessage(
   conversationId: number,
   content: string,
+  token: string | null,
   onChunk: (text: string) => void,
   onDone: () => void
 ) {
   const base = import.meta.env.VITE_API_BASE_URL ?? '';
   const res = await fetch(`${base}/api/conversations/${conversationId}/messages`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify({ content }),
+  });
+  // rest of the function stays exactly the same
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
