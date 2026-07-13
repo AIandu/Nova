@@ -14,10 +14,6 @@ export async function streamNovaMessage(
     },
     body: JSON.stringify({ content }),
   });
-  // rest of the function stays exactly the same
-  });
-  // rest of the function stays exactly the same
-  });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`${res.status} ${res.statusText}: ${text}`);
