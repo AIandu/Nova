@@ -3,8 +3,7 @@ export async function streamNovaMessage(
   content: string,
   onChunk: (text: string) => void,
   onDone: () => void
-) {
-  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+) {const base = import.meta.env.VITE_API_BASE_URL ?? '';
   const res = await fetch(`${base}/api/conversations/${conversationId}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
