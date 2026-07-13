@@ -165,8 +165,15 @@ export default function PartnerHome() {
         },
         () => setIsStreaming(false)
       );
-    } catch {
+        } catch (err) {
       setIsStreaming(false);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `⚠️ ${err instanceof Error ? err.message : 'Unknown error'}`,
+        },
+      ]);
     }
   }, [input, conversationId, isStreaming]);
 
