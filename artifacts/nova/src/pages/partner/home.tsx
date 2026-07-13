@@ -109,6 +109,7 @@ export default function PartnerHome() {
   const createTodo = useCreateTodo();
   const updateTodo = useUpdateTodo();
   const deleteUpload = useDeleteUpload();
+  const clerk = useClerk();
 
     // Init conversation
   useEffect(() => {
@@ -209,7 +210,7 @@ export default function PartnerHome() {
     );
   };
 
-    const clerk = useClerk();
+  
 
   const handleUploadFile = async (file: File) => {
     setUploading(true);
