@@ -6,6 +6,7 @@ import NotFound from '@/pages/not-found';
 import { Route, Switch, Router as WouterRouter, Redirect, useLocation } from 'wouter';
 import { ClerkProvider, SignIn, SignUp, Show, useClerk } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
+import { setAuthTokenGetter } from '@workspace/api-client-react';
 import { dark } from '@clerk/themes';
 
 // Layouts
@@ -97,6 +98,17 @@ const clerkAppearance = {
     main: '',
   },
 };
+// Attach the current user's login token to every API request
+function ApiAuthTokenWiring() {
+  const clerk = useClerk();
+
+  useEffect(() => {
+    setAuthTokenGetter(() => clerk.session?.getToken() ?? null);
+    return () => setAuthTokenGetter(null);
+  }, [clerk]);
+
+  return null;
+}
 
 // Invalidate React Query cache on user change
 function ClerkQueryClientCacheInvalidator() {
