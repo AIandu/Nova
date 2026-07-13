@@ -110,7 +110,7 @@ export default function PartnerHome() {
   const updateTodo = useUpdateTodo();
   const deleteUpload = useDeleteUpload();
 
-  // Init conversation
+    // Init conversation
   useEffect(() => {
     createConv.mutate(
       { data: { door: 'partner' } },
@@ -121,6 +121,14 @@ export default function PartnerHome() {
             {
               role: 'assistant',
               content: "Running. What do you need me to think through?",
+            },
+          ]);
+        },
+        onError: (err) => {
+          setMessages([
+            {
+              role: 'assistant',
+              content: `⚠️ Could not start session: ${err instanceof Error ? err.message : String(err)}`,
             },
           ]);
         },
