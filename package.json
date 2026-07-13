@@ -1,6 +1,6 @@
 {
   "name": "workspace",
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@9.15.9",
   
   "version": "0.0.0",
   "license": "MIT",
@@ -11,7 +11,7 @@
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
   "private": true,
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@9.15.9",
   "dependencies": {
     "@replit/connectors-sdk": "^0.4.1"
   },
