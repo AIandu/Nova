@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useClerk } from '@clerk/react';
 import {
   useCreateConversation,
   useListTodos,
@@ -191,13 +192,20 @@ export default function PartnerHome() {
     );
   };
 
+    const clerk = useClerk();
+
   const handleUploadFile = async (file: File) => {
     setUploading(true);
     const formData = new FormData();
     formData.append('file', file);
     const base = import.meta.env.VITE_API_BASE_URL ?? '';
     try {
-      await fetch(`${base}/api/uploads`, { method: 'POST', body: formData });
+      const token = await clerk.session?.getToken();
+      await fetch(`${base}/api/uploads`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: formData,
+      });
       queryClient.invalidateQueries({ queryKey: getListUploadsQueryKey() });
     } finally {
       setUploading(false);
