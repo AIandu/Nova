@@ -241,7 +241,10 @@
 
 .partner-bg-fade {
   transition: opacity 0.4s ease;
+  transform: translateZ(0);
+  will-change: opacity;
 }
+
 
 .partner-bg-fade.focused {
   opacity: 0.25;
