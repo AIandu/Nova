@@ -3,12 +3,17 @@ export async function streamNovaMessage(
   content: string,
   onChunk: (text: string) => void,
   onDone: () => void
-) {const base = import.meta.env.VITE_API_BASE_URL ?? '';
+) {
+  const base = import.meta.env.VITE_API_BASE_URL ?? '';
   const res = await fetch(`${base}/api/conversations/${conversationId}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ content }),
   });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`${res.status} ${res.statusText}: ${text}`);
+  }
   const reader = res.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
