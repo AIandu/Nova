@@ -9,8 +9,20 @@ import {
   SendMessageBody,
 } from "@workspace/api-zod";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { getAuth } from "@clerk/express";
 
 const router = Router();
+
+function requirePartnerAuth(door: string, req: any, res: any): boolean {
+  if (door !== "partner") return true;
+  const auth = getAuth(req);
+  const userId = auth?.sessionClaims?.userId || auth?.userId;
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return false;
+  }
+  return true;
+}
 
 // Nova system prompts per door
 function getSystemPrompt(door: string): string {
@@ -62,6 +74,8 @@ router.post("/", async (req, res) => {
     return;
   }
 
+  if (!requirePartnerAuth(parsed.data.door, req, res)) return;
+
   try {
     const [conversation] = await db
       .insert(conversations)
@@ -91,10 +105,13 @@ router.get("/:id", async (req, res) => {
       .from(conversations)
       .where(eq(conversations.id, params.data.id));
 
-    if (!conv) {
+        if (!conv) {
       res.status(404).json({ error: "Conversation not found" });
       return;
     }
+
+    if (!requirePartnerAuth(conv.door, req, res)) return;
+
 
     const msgs = await db
       .select()
@@ -129,10 +146,17 @@ router.post("/:id/messages", async (req, res) => {
       .from(conversations)
       .where(eq(conversations.id, params.data.id));
 
-    if (!conv) {
+        if (!conv) {
       res.status(404).json({ error: "Conversation not found" });
       return;
     }
+
+            if (!conv) {
+      res.status(404).json({ error: "Conversation not found" });
+      return;
+    }
+
+    if (!requirePartnerAuth(conv.door, req, res)) return;
 
     // Persist user message
     await db.insert(messages).values({
